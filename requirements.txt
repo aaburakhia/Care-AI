@@ -7,8 +7,7 @@ uvicorn==0.30.1
 supabase-py==2.4.2
 python-dotenv==1.0.1
 
-# Core ML/AI Libraries (Placeholder for later, but good to add for structure)
-scikit-learn==1.5.0
-xgboost==2.0.3
+# Data Handling & Core ML
 pandas==2.2.2
 numpy==1.26.4
+scikit-learn==1.5.0
