@@ -1,7 +1,7 @@
 import streamlit as st
 from PIL import Image
 import numpy as np
-import tflite_runtime.interpreter as tflite
+import tensorflow as tf
 from huggingface_hub import hf_hub_download
 import os
 
@@ -17,50 +17,38 @@ if 'user' not in st.session_state or st.session_state.user is None:
 # --- Model Loading ---
 @st.cache_resource
 def load_tflite_model():
-    """
-    Downloads the TFLite model from Hugging Face Hub and loads the interpreter.
-    """
-
     repo_id = "aaburakhia/Pneumonia-Detector-CareAI" 
     model_filename = "model.tflite"
 
-    # To make the download path more robust, we'll store it in a dedicated folder
     local_dir = "model"
     os.makedirs(local_dir, exist_ok=True)
     model_path = os.path.join(local_dir, model_filename)
 
-    # Download only if the model doesn't exist locally
     if not os.path.exists(model_path):
         try:
             hf_hub_download(repo_id=repo_id, filename=model_filename, local_dir=local_dir)
         except Exception as e:
             st.error(f"Error downloading model: {e}")
             st.stop()
-
+    
     try:
-        interpreter = tflite.Interpreter(model_path=model_path)
+        # --- CORRECTED INTERPRETER CALL ---
+        interpreter = tf.lite.Interpreter(model_path=model_path)
+        # ----------------------------------
         interpreter.allocate_tensors()
         return interpreter
     except Exception as e:
         st.error(f"Failed to load TFLite model: {e}")
         st.stop()
 
-# --- Image Preprocessing ---
-def preprocess_image(image: Image.Image, input_details):
-    """
-    Prepares the uploaded image to be compatible with the TFLite model.
-    """
-    _, height, width, _ = input_details[0]['shape']
-    
-    img_resized = image.resize((width, height))
-    img_rgb = img_resized.convert('RGB')
-    
-    img_array = np.array(img_rgb, dtype=np.float32) / 255.0
-    img_expanded = np.expand_dims(img_array, axis=0)
-    
-    return img_expanded
+# (The rest of the file is exactly the same)
 
-# --- Main App ---
+def preprocess_image(image: Image.Image, input_details):
+    _, height, width, _ = input_details[0]['shape']
+    img_resized = image.resize((width, height)).convert('RGB')
+    img_array = np.array(img_resized, dtype=np.float32) / 255.0
+    return np.expand_dims(img_array, axis=0)
+
 interpreter = load_tflite_model()
 if interpreter:
     input_details = interpreter.get_input_details()
