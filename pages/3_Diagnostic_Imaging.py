@@ -32,23 +32,23 @@ def load_tflite_model():
             st.stop()
     
     try:
-        # --- CORRECTED INTERPRETER CALL ---
+        # --- THIS IS THE CORRECT INTERPRETER CALL ---
         interpreter = tf.lite.Interpreter(model_path=model_path)
-        # ----------------------------------
+        # ------------------------------------------
         interpreter.allocate_tensors()
         return interpreter
     except Exception as e:
         st.error(f"Failed to load TFLite model: {e}")
         st.stop()
 
-# (The rest of the file is exactly the same)
-
+# --- Image Preprocessing ---
 def preprocess_image(image: Image.Image, input_details):
     _, height, width, _ = input_details[0]['shape']
     img_resized = image.resize((width, height)).convert('RGB')
     img_array = np.array(img_resized, dtype=np.float32) / 255.0
     return np.expand_dims(img_array, axis=0)
 
+# --- Main App ---
 interpreter = load_tflite_model()
 if interpreter:
     input_details = interpreter.get_input_details()
