@@ -32,9 +32,9 @@ def load_tflite_model():
             st.stop()
     
     try:
-        # --- THIS IS THE CORRECT INTERPRETER CALL ---
+        # --- PROVEN CORRECT INTERPRETER CALL ---
         interpreter = tf.lite.Interpreter(model_path=model_path)
-        # ------------------------------------------
+        # ---------------------------------------
         interpreter.allocate_tensors()
         return interpreter
     except Exception as e:
