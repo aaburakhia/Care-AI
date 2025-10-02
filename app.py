@@ -67,7 +67,10 @@ if st.session_state.user is None:
 # If the user IS logged in, show the main application content
 else:
     st.success(f"Welcome back, {st.session_state.user.user.email}!")
-    st.write("You are now logged in and can access the application features.")
+    st.markdown("---")
+    st.header("Your Integrated Health Co-Pilot")
+    st.write("Please select a feature from the sidebar on the left to get started.")
+    st.info("Start with the **Symptom Checker** to get a preliminary analysis of your symptoms.", icon="🩺")
     
     if st.button("Logout"):
         supabase.auth.sign_out()
