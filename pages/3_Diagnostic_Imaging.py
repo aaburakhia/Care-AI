@@ -1,9 +1,14 @@
 import streamlit as st
 from PIL import Image
 import numpy as np
+import os
+
+# Memory optimization - MUST be before TensorFlow import
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
 import tensorflow as tf
 from huggingface_hub import hf_hub_download
-import os
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Diagnostic Imaging Assistant", page_icon="🩻")
@@ -19,11 +24,10 @@ if 'user' not in st.session_state or st.session_state.user is None:
 def load_tflite_model():
     repo_id = "aaburakhia/Pneumonia-Detector-CareAI" 
     model_filename = "model.tflite"
-
     local_dir = "model"
     os.makedirs(local_dir, exist_ok=True)
     model_path = os.path.join(local_dir, model_filename)
-
+    
     if not os.path.exists(model_path):
         try:
             hf_hub_download(repo_id=repo_id, filename=model_filename, local_dir=local_dir)
@@ -32,9 +36,7 @@ def load_tflite_model():
             st.stop()
     
     try:
-        # --- PROVEN CORRECT INTERPRETER CALL ---
         interpreter = tf.lite.Interpreter(model_path=model_path)
-        # ---------------------------------------
         interpreter.allocate_tensors()
         return interpreter
     except Exception as e:
@@ -50,15 +52,16 @@ def preprocess_image(image: Image.Image, input_details):
 
 # --- Main App ---
 interpreter = load_tflite_model()
+
 if interpreter:
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
     
     st.write("Upload a chest X-ray image to get a preliminary analysis for the presence of pneumonia.")
     st.info("This model is a proof-of-concept and should **not** be used for actual medical diagnosis.", icon="⚠️")
-
+    
     uploaded_file = st.file_uploader("Choose a chest X-ray image...", type=["jpeg", "jpg", "png"])
-
+    
     if uploaded_file is not None:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded X-Ray", use_column_width=True)
