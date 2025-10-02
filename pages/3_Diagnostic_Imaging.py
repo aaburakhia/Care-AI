@@ -20,11 +20,9 @@ def load_tflite_model():
     """
     Downloads the TFLite model from Hugging Face Hub and loads the interpreter.
     """
-    # --- !!! IMPORTANT !!! ---
-    # CHANGE THIS TO YOUR HUGGING FACE REPOSITORY ID
-    repo_id = "YOUR_USERNAME/YOUR_REPO_NAME" 
+
+    repo_id = "aaburakhia/Pneumonia-Detector-CareAI" 
     model_filename = "model.tflite"
-    # -------------------------
 
     # To make the download path more robust, we'll store it in a dedicated folder
     local_dir = "model"
