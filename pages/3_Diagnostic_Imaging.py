@@ -1,14 +1,9 @@
 import streamlit as st
 from PIL import Image
 import numpy as np
-import os
-
-# Memory optimization - MUST be before TensorFlow import
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-
-import tensorflow as tf
+import onnxruntime as ort
 from huggingface_hub import hf_hub_download
+import os
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Diagnostic Imaging Assistant", page_icon="🩻")
@@ -21,9 +16,9 @@ if 'user' not in st.session_state or st.session_state.user is None:
 
 # --- Model Loading ---
 @st.cache_resource
-def load_tflite_model():
+def load_onnx_model():
     repo_id = "aaburakhia/Pneumonia-Detector-CareAI" 
-    model_filename = "model.tflite"
+    model_filename = "model.onnx"
     local_dir = "model"
     os.makedirs(local_dir, exist_ok=True)
     model_path = os.path.join(local_dir, model_filename)
@@ -36,26 +31,24 @@ def load_tflite_model():
             st.stop()
     
     try:
-        interpreter = tf.lite.Interpreter(model_path=model_path)
-        interpreter.allocate_tensors()
-        return interpreter
+        session = ort.InferenceSession(model_path)
+        return session
     except Exception as e:
-        st.error(f"Failed to load TFLite model: {e}")
+        st.error(f"Failed to load ONNX model: {e}")
         st.stop()
 
 # --- Image Preprocessing ---
-def preprocess_image(image: Image.Image, input_details):
-    _, height, width, _ = input_details[0]['shape']
-    img_resized = image.resize((width, height)).convert('RGB')
+def preprocess_image(image: Image.Image):
+    img_resized = image.resize((150, 150)).convert('RGB')
     img_array = np.array(img_resized, dtype=np.float32) / 255.0
     return np.expand_dims(img_array, axis=0)
 
 # --- Main App ---
-interpreter = load_tflite_model()
+session = load_onnx_model()
 
-if interpreter:
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
+if session:
+    input_name = session.get_inputs()[0].name
+    output_name = session.get_outputs()[0].name
     
     st.write("Upload a chest X-ray image to get a preliminary analysis for the presence of pneumonia.")
     st.info("This model is a proof-of-concept and should **not** be used for actual medical diagnosis.", icon="⚠️")
@@ -68,11 +61,10 @@ if interpreter:
         
         if st.button("Analyze Image"):
             with st.spinner("Model is analyzing the image..."):
-                processed_image = preprocess_image(image, input_details)
+                processed_image = preprocess_image(image)
                 
-                interpreter.set_tensor(input_details[0]['index'], processed_image)
-                interpreter.invoke()
-                prediction = interpreter.get_tensor(output_details[0]['index'])
+                outputs = session.run([output_name], {input_name: processed_image})
+                prediction = outputs[0]
                 
                 confidence_score = float(prediction[0][0]) * 100
                 
