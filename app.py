@@ -7,6 +7,35 @@ st.set_page_config(
     page_icon="🩺",
     layout="centered" # Use 'centered' for a cleaner look on the login page
 )
+# --- CUSTOM STYLING  ---
+def add_custom_css():
+    """
+    This function adds custom CSS to the Streamlit app for styling.
+    """
+    st.markdown(
+        """
+        <style>
+        /* This targets the main block container of the Streamlit app */
+        [data-testid="stAppViewContainer"] {
+            background-image: linear-gradient(to right, #0A192F, #1E3A8A);
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+
+        /* This ensures that other elements like the sidebar have a consistent but solid background */
+        [data-testid="stSidebar"] {
+            background-color: #0A192F;
+        }
+
+        /* You can add more custom styles here if you want */
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Call the function to apply the CSS
+add_custom_css()
 
 # --- INITIALIZE SUPABASE CLIENT ---
 # This line calls our function and gets the Supabase client object.
