@@ -1,0 +1,19 @@
+# .streamlit/config.toml
+
+[theme]
+# The primary accent color for interactive elements.
+primaryColor = "#00C497"  # A vibrant teal/cyan
+
+# Background color for the main content area.
+# This will be overridden by our gradient, but it's good for fallback.
+backgroundColor = "#0A192F" # Dark Navy Blue
+
+# Background color for sidebar and most containers.
+secondaryBackgroundColor = "#1E3A5F" # A slightly lighter navy
+
+# Color of text in the main content area.
+textColor = "#FFFFFF" # White
+
+# Font family for the app.
+# Options: "sans serif", "serif", or "monospace"
+font = "sans serif"
