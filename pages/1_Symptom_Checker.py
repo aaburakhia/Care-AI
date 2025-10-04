@@ -1,7 +1,7 @@
 import streamlit as st
 from gemini_client import get_symptom_analysis
 from supabase_client import get_supabase_client, save_symptom_analysis
-from style_utils import add_custom_css # <--- ADD THIS LINE
+from style_utils import add_custom_css 
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Symptom Checker", page_icon="🩺")
