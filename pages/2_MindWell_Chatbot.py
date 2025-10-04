@@ -1,8 +1,10 @@
 import streamlit as st
 import time
+from style_utils import add_custom_css
 
 # --- Page Configuration ---
 st.set_page_config(page_title="MindWell Chatbot", page_icon="🧠")
+add_custom_css()
 st.title("MindWell: Your Mental Health Support Chatbot")
 
 # --- Authentication Check ---
