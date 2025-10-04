@@ -1,5 +1,7 @@
 import streamlit as st
 from gemini_client import get_symptom_analysis
+# --- MODIFIED: Import the new functions from supabase_client ---
+from supabase_client import get_supabase_client, save_symptom_analysis
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Symptom Checker", page_icon="🩺")
@@ -9,6 +11,9 @@ st.title("AI-Powered Symptom Checker")
 if 'user' not in st.session_state or st.session_state.user is None:
     st.warning("Please log in to access this page.")
     st.stop()
+    
+# --- NEW: Get the Supabase client object ---
+supabase = get_supabase_client()
 
 # --- Input Pre-Validation Function ---
 def is_valid_input(symptoms: str) -> bool:
@@ -51,6 +56,14 @@ if submitted and symptoms_input:
         if "error" in analysis_result:
             st.error(analysis_result["error"])
         else:
+            # --- NEW: Save the result to the database ---
+            save_success = save_symptom_analysis(supabase, symptoms_input, analysis_result)
+            if save_success:
+                st.toast("Analysis saved to your history!", icon="✅")
+            else:
+                st.toast("Could not save analysis to your history.", icon="❌")
+            # ---------------------------------------------
+            
             # The rest of the display logic is the same as before
             st.subheader("Analysis Results")
             if "disclaimer" in analysis_result:
