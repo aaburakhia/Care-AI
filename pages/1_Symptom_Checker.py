@@ -1,10 +1,11 @@
 import streamlit as st
 from gemini_client import get_symptom_analysis
-# --- MODIFIED: Import the new functions from supabase_client ---
 from supabase_client import get_supabase_client, save_symptom_analysis
+from style_utils import add_custom_css # <--- ADD THIS LINE
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Symptom Checker", page_icon="🩺")
+add_custom_css() # <--- ADD THIS LINE
 st.title("AI-Powered Symptom Checker")
 
 # --- Authentication Check ---
@@ -12,7 +13,7 @@ if 'user' not in st.session_state or st.session_state.user is None:
     st.warning("Please log in to access this page.")
     st.stop()
     
-# --- NEW: Get the Supabase client object ---
+# --- Get the Supabase client object ---
 supabase = get_supabase_client()
 
 # --- Input Pre-Validation Function ---
@@ -20,12 +21,10 @@ def is_valid_input(symptoms: str) -> bool:
     """
     A simple check to guard against clearly invalid input before calling the API.
     """
-    # Check 1: Minimum length
     if len(symptoms.split()) < 3:
         st.error("Please provide a more detailed description of your symptoms (at least 3 words).")
         return False
     
-    # Check 2: Presence of at least one common symptom-related keyword
     symptom_keywords = [
         'pain', 'ache', 'fever', 'headache', 'cough', 'sore', 'throat', 'nausea', 
         'dizzy', 'fatigue', 'tired', 'rash', 'itchy', 'swelling', 'breathing', 
