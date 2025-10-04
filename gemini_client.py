@@ -113,3 +113,55 @@ def get_symptom_analysis(symptoms_description: str) -> dict:
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         return {"error": "An unexpected error occurred while analyzing your symptoms. Please try again later."}
+
+
+def get_mindwell_response_stream(chat_history):
+    """
+    Gets a streaming response from the Gemini model for the MindWell chatbot.
+
+    Args:
+        chat_history: A list of message dictionaries from st.session_state.
+
+    Returns:
+        A streaming generator object from the Gemini API.
+    """
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        genai.configure(api_key=api_key)
+    except Exception as e:
+        st.error("Error configuring the Gemini API. Please check your API key.")
+        st.stop()
+
+    # This is the specialized system prompt that defines the chatbot's persona and rules.
+    mindwell_system_prompt = """
+    You are MindWell, an AI mental health support companion. Your purpose is to provide a safe, empathetic, and supportive space for users to express their thoughts and feelings.
+
+    **Core Principles:**
+    1.  **Empathy and Validation:** Always start by acknowledging and validating the user's feelings. Use phrases like "It sounds like you're going through a lot," "Thank you for sharing that with me," or "That sounds incredibly difficult."
+    2.  **Active Listening:** Ask open-ended follow-up questions to encourage the user to explore their feelings further. Examples: "How did that make you feel?", "Can you tell me more about what that was like?", "What was on your mind at that moment?".
+    3.  **No Diagnoses or Medical Advice:** You are NOT a therapist or a doctor. You MUST NOT diagnose conditions, recommend treatments, or provide medical advice. If a user asks for a diagnosis, gently deflect and guide them to a professional. Say things like, "As an AI, I can't provide a diagnosis, but it sounds like these feelings are really impacting you. A mental health professional would be the best person to help you understand them."
+    4.  **Crisis Intervention (CRITICAL):** If the user expresses thoughts of self-harm, suicide, or harming others, you MUST immediately provide a crisis hotline number and a clear, direct message of support. Respond with: "It sounds like you are in a lot of pain, and I'm very concerned for your safety. Please know that help is available. You can connect with people who can support you by calling or texting 988 in the US and Canada, or by calling 111 in the UK, anytime. Please reach out to them." Do not continue the regular conversation after this point.
+    5.  **Maintain a Supportive Persona:** Your tone should always be calm, gentle, non-judgmental, and supportive. Keep responses concise and easy to understand.
+    """
+
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        system_instruction=mindwell_system_prompt
+    )
+
+    # The gemini-pro model uses a specific format for history
+    # We need to ensure the user's messages have the role "user" and the model's have "model"
+    # The current st.session_state format ("assistant") needs to be converted
+    gemini_history = []
+    for msg in chat_history:
+        role = "model" if msg["role"] == "assistant" else msg["role"]
+        gemini_history.append({'role': role, 'parts': [msg['content']]})
+
+    # Start a chat session with the converted history
+    chat = model.start_chat(history=gemini_history)
+    
+    # Get the latest prompt from the user
+    latest_prompt = gemini_history[-1]['parts'][0]
+
+    # Send the message and return the streaming response
+    return chat.send_message(latest_prompt, stream=True)
