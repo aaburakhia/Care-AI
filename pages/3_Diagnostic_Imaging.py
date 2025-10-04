@@ -4,6 +4,7 @@ import numpy as np
 import onnxruntime as ort
 from huggingface_hub import hf_hub_download
 import os
+from style_utils import add_custom_css
 
 # Page Configuration
 st.set_page_config(
@@ -11,6 +12,7 @@ st.set_page_config(
     page_icon="🩻",
     layout="wide"
 )
+add_custom_css()
 
 # Authentication Check
 if 'user' not in st.session_state or st.session_state.user is None:
