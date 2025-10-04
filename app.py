@@ -1,44 +1,20 @@
+# 0_Home.py
+
 import streamlit as st
-from supabase_client import get_supabase_client # Import our new function
+from supabase_client import get_supabase_client
+from style_utils import add_custom_css 
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="Care-AI Analytics",
+    page_title="Care-AI Analytics | Home", 
     page_icon="🩺",
-    layout="centered" # Use 'centered' for a cleaner look on the login page
+    layout="centered"
 )
-# --- CUSTOM STYLING  ---
-def add_custom_css():
-    """
-    This function adds custom CSS to the Streamlit app for styling.
-    """
-    st.markdown(
-        """
-        <style>
-        /* This targets the main block container of the Streamlit app */
-        [data-testid="stAppViewContainer"] {
-            background-image: linear-gradient(to right, #0A192F, #1E3A8A);
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }
 
-        /* This ensures that other elements like the sidebar have a consistent but solid background */
-        [data-testid="stSidebar"] {
-            background-color: #0A192F;
-        }
-
-        /* You can add more custom styles here if you want */
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-# Call the function to apply the CSS
+# --- CUSTOM STYLING ---
 add_custom_css()
 
 # --- INITIALIZE SUPABASE CLIENT ---
-# This line calls our function and gets the Supabase client object.
 supabase = get_supabase_client()
 
 # --- USER AUTHENTICATION ---
@@ -54,7 +30,6 @@ if 'user' not in st.session_state:
 if st.session_state.user is None:
     st.write("Welcome! Please sign in or create an account to continue.")
     
-    # Use tabs for a clean interface
     signup_tab, login_tab = st.tabs(["Sign Up", "Login"])
 
     with signup_tab:
@@ -65,7 +40,6 @@ if st.session_state.user is None:
             
             if st.form_submit_button("Sign Up"):
                 try:
-                    # Use the Supabase client to sign up the user
                     user = supabase.auth.sign_up({
                         "email": new_email,
                         "password": new_password,
@@ -82,14 +56,12 @@ if st.session_state.user is None:
 
             if st.form_submit_button("Login"):
                 try:
-                    # Use the Supabase client to sign in the user
                     user = supabase.auth.sign_in_with_password({
                         "email": email,
                         "password": password
                     })
-                    # If login is successful, store user info in session state
                     st.session_state.user = user
-                    st.rerun() # Rerun the script to reflect the logged-in state
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Error during login: {e}")
 
@@ -104,4 +76,4 @@ else:
     if st.button("Logout"):
         supabase.auth.sign_out()
         st.session_state.user = None
-        st.rerun() # Rerun to go back to the login page
+        st.rerun()
