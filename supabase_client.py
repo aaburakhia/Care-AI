@@ -45,3 +45,21 @@ def save_symptom_analysis(supabase_client, symptoms, analysis):
     except Exception as e:
         print(f"Error saving to database: {e}")
         return False
+
+def get_symptom_history(supabase_client):
+    """
+    Retrieves the symptom analysis history for the currently logged-in user.
+    """
+    try:
+        # The .select() query automatically uses the RLS policies you created.
+        # It will only ever return rows where the user_id matches the logged-in user.
+        # We order by 'created_at' descending to show the newest entries first.
+        response = supabase_client.table('symptom_history').select('*').order('created_at', desc=True).execute()
+        
+        if response.data:
+            return response.data
+        return [] # Return an empty list if there's no history
+        
+    except Exception as e:
+        print(f"Error fetching history from database: {e}")
+        return []
