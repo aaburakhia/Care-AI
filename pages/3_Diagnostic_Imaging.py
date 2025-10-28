@@ -43,7 +43,7 @@ def preprocess_image(image: Image.Image, input_size=(150, 150)):
     """Generic function to preprocess an image for a model."""
     img_resized = image.resize(input_size).convert('RGB')
     # THE FIX: Explicitly set the data type to float32
-    img_array = np.array(img_resized, dtype=np.float32) / 255.0
+    img_array = (np.array(img_resized) / 255.0).astype(np.float32)
     return np.expand_dims(img_array, axis=0)
 
 # --- Sidebar ---
