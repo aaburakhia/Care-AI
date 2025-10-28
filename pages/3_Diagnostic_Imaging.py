@@ -38,12 +38,11 @@ def load_model(model_filename):
         st.error(f"Failed to load ONNX model '{model_filename}': {e}")
         return None
 
-# --- Image Preprocessing with THE BUG FIX ---
+# --- Image Preprocessing with Data Type Fix ---
 def preprocess_image(image: Image.Image, input_size=(150, 150)):
     """Generic function to preprocess an image for a model."""
     img_resized = image.resize(input_size).convert('RGB')
-    # THE FIX: Explicitly set the data type to float32
-    img_array = (np.array(img_resized) / 255.0).astype(np.float32)
+    img_array = (np.array(img_resized) / 250.0).astype(np.float32)
     return np.expand_dims(img_array, axis=0)
 
 # --- Sidebar ---
@@ -53,12 +52,10 @@ with st.sidebar:
     with st.expander("Model Details"):
         st.markdown("""
         **Pneumonia Model:**
-        - **Architecture:** VGG16 Transfer Learning
         - **Input:** 150x150 RGB `float32`
         
         **Breast Cancer Model:**
-        - **Architecture:** (e.g., ResNet, VGG)
-        - **Input:** 150x150 RGB `float32`
+        - **Input:** 224x224 RGB `float32`
         """)
     st.info("This is a proof-of-concept and not a substitute for professional medical diagnosis.")
 
@@ -72,45 +69,38 @@ pneumonia_tab, breast_cancer_tab = st.tabs(["🫁 Pneumonia Detection (X-Ray)", 
 
 # --- Pneumonia Tab ---
 with pneumonia_tab:
+    # (The layout part of this tab is unchanged)
     st.header("Pneumonia Detection")
     p_col1, p_col2 = st.columns(2)
-    
     with p_col1:
         st.markdown("#### Provide an X-Ray Image")
         p_uploaded_file = st.file_uploader("Upload a chest X-ray", type=["jpeg", "jpg", "png"], key="pneumonia_uploader")
-        
         st.markdown("<h5 style='text-align: center; color: grey;'>or</h5>", unsafe_allow_html=True)
-        
         if st.button("Load Normal X-Ray (Demo)", use_container_width=True, key="p_demo_normal"):
             st.session_state.p_image = Image.open("demo_images/normal_1.jpeg")
             st.session_state.p_caption = "Demo - Normal X-Ray"
-
         if st.button("Load Pneumonia X-Ray (Demo)", use_container_width=True, key="p_demo_pneumonia"):
             st.session_state.p_image = Image.open("demo_images/pneumonia_1.jpeg")
             st.session_state.p_caption = "Demo - Pneumonia X-Ray"
-            
     with p_col2:
         st.markdown("#### Analyze & Review")
-        
         p_image_to_show = None
         if p_uploaded_file:
             p_image_to_show = Image.open(p_uploaded_file)
             st.session_state.p_caption = "Uploaded X-Ray"
         elif 'p_image' in st.session_state:
             p_image_to_show = st.session_state.p_image
-        
         if p_image_to_show:
             st.image(p_image_to_show, caption=st.session_state.p_caption, use_container_width=True)
             if st.button("🔬 Analyze for Pneumonia", type="primary", use_container_width=True, key="p_analyze"):
                 with st.spinner("Care-AI is analyzing for Pneumonia..."):
                     session = load_model("model.onnx")
-                    processed_image = preprocess_image(p_image_to_show)
-                    
+                    # --- FIX 1: Specify size for Pneumonia model ---
+                    processed_image = preprocess_image(p_image_to_show, input_size=(150, 150))
                     input_name = session.get_inputs()[0].name
                     output_name = session.get_outputs()[0].name
                     outputs = session.run([output_name], {input_name: processed_image})
                     score = float(outputs[0][0][0])
-                    
                     if score > 0.5:
                         st.error(f"**Finding:** Pneumonia Likely Detected (Confidence: {score*100:.2f}%)", icon="🏥")
                     else:
@@ -120,46 +110,38 @@ with pneumonia_tab:
 
 # --- Breast Cancer Tab ---
 with breast_cancer_tab:
+    # (The layout part of this tab is unchanged)
     st.header("Breast Cancer Detection")
     bc_col1, bc_col2 = st.columns(2)
-
     with bc_col1:
         st.markdown("#### Provide a Mammogram Scan")
         bc_uploaded_file = st.file_uploader("Upload a mammogram scan", type=["jpeg", "jpg", "png"], key="bc_uploader")
-        
         st.markdown("<h5 style='text-align: center; color: grey;'>or</h5>", unsafe_allow_html=True)
-        
         if st.button("Load Benign Scan (Demo)", use_container_width=True, key="bc_demo_benign"):
             st.session_state.bc_image = Image.open("demo_images/bc_benign_1.jpeg")
             st.session_state.bc_caption = "Demo - Benign Scan"
-
         if st.button("Load Malignant Scan (Demo)", use_container_width=True, key="bc_demo_malignant"):
             st.session_state.bc_image = Image.open("demo_images/bc_malignant_1.jpeg")
             st.session_state.bc_caption = "Demo - Malignant Scan"
-
     with bc_col2:
         st.markdown("#### Analyze & Review")
-        
         bc_image_to_show = None
         if bc_uploaded_file:
             bc_image_to_show = Image.open(bc_uploaded_file)
             st.session_state.bc_caption = "Uploaded Scan"
         elif 'bc_image' in st.session_state:
             bc_image_to_show = st.session_state.bc_image
-            
         if bc_image_to_show:
             st.image(bc_image_to_show, caption=st.session_state.bc_caption, use_container_width=True)
             if st.button("🎀 Analyze for Breast Cancer", type="primary", use_container_width=True, key="bc_analyze"):
                 with st.spinner("Care-AI is analyzing for Breast Cancer..."):
                     session = load_model("breast_cancer_classifier.onnx")
-                    processed_image = preprocess_image(bc_image_to_show) # Assumes 150x150 input
-
+                    # --- FIX 2: Specify size for Breast Cancer model ---
+                    processed_image = preprocess_image(bc_image_to_show, input_size=(224, 224))
                     input_name = session.get_inputs()[0].name
                     output_name = session.get_outputs()[0].name
                     outputs = session.run([output_name], {input_name: processed_image})
                     score = float(outputs[0][0][0])
-                    
-                    # IMPORTANT: This assumes score > 0.5 means MALIGNANT. Adjust if needed.
                     if score > 0.5:
                         st.error(f"**Finding:** Malignant Cells Likely Detected (Confidence: {score*100:.2f}%)", icon="⚠️")
                     else:
