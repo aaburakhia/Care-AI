@@ -1,6 +1,6 @@
 import streamlit as st
 from supabase import create_client, Client
-import json # Import the json library for handling the analysis result
+import json
 
 # This function creates and returns a Supabase client instance.
 # It uses Streamlit's secrets management to get the credentials.
@@ -17,8 +17,6 @@ def get_supabase_client() -> Client:
     
     # The create_client function initializes the connection to your Supabase project.
     return create_client(supabase_url, supabase_key)
-
-# --- NEW FUNCTION ADDED BELOW ---
 
 def save_symptom_analysis(supabase_client, symptoms, analysis):
     """
@@ -63,3 +61,37 @@ def get_symptom_history(supabase_client):
     except Exception as e:
         print(f"Error fetching history from database: {e}")
         return []
+
+# --- NEW CHAT FUNCTIONS ADDED BELOW ---
+
+def create_chat_conversation(supabase_client):
+    """Creates a new chat conversation for the current user and returns its ID."""
+    try:
+        # We only need to insert a row; user_id is handled by the default value.
+        response = supabase_client.table('chat_conversations').insert({}).execute()
+        
+        if response.data:
+            # The database returns the new row's data, including the generated ID.
+            return response.data[0]['id']
+        return None
+    except Exception as e:
+        print(f"Error creating conversation: {e}")
+        return None
+
+def save_chat_message(supabase_client, conversation_id, role, content):
+    """Saves a single chat message to the database."""
+    try:
+        supabase_client.table('chat_messages').insert({
+            "conversation_id": conversation_id,
+            "role": role,
+            "content": content
+        }).execute()
+        return True
+    except Exception as e:
+        print(f"Error saving chat message: {e}")
+        return False
+
+def get_chat_history(supabase_client):
+    """Retrieves all conversations and their messages for the current user."""
+    # This is a placeholder for a future feature to view past chats.
+    pass
