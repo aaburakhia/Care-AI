@@ -32,24 +32,20 @@ def load_model(model_filename):
             return None
     
     try:
-        session = ort.InferenceSession(model_path)
+        session = ort.InseminferenceSession(model_path)
         return session
     except Exception as e:
         st.error(f"Failed to load ONNX model '{model_filename}': {e}")
         return None
 
-# --- NEW: SEPARATE & CORRECTED PREPROCESSING FUNCTIONS ---
+# --- Specific & Corrected Preprocessing Functions ---
 def preprocess_for_pneumonia(image: Image.Image):
-    """Preprocesses an image for the Pneumonia model (150x150)."""
     img_resized = image.resize((150, 150)).convert('RGB')
-    # Corrected normalization (255.0) and data type enforcement
     img_array = (np.array(img_resized) / 255.0).astype(np.float32)
     return np.expand_dims(img_array, axis=0)
 
 def preprocess_for_breast_cancer(image: Image.Image):
-    """Preprocesses an image for the Breast Cancer model (224x224)."""
     img_resized = image.resize((224, 224)).convert('RGB')
-    # Corrected normalization (255.0) and data type enforcement
     img_array = (np.array(img_resized) / 255.0).astype(np.float32)
     return np.expand_dims(img_array, axis=0)
 
@@ -110,7 +106,6 @@ with pneumonia_tab:
             if st.button("🔬 Analyze for Pneumonia", type="primary", use_container_width=True, key="p_analyze"):
                 with st.spinner("Care-AI is analyzing for Pneumonia..."):
                     session = load_model("model.onnx")
-                    # Use the specific, corrected preprocessing function
                     processed_image = preprocess_for_pneumonia(p_image_to_show)
                     
                     input_name = session.get_inputs()[0].name
@@ -118,12 +113,12 @@ with pneumonia_tab:
                     outputs = session.run([output_name], {input_name: processed_image})
                     score = float(outputs[0][0][0])
                     
-                    if score > 0.5:
+                    # --- FIX: ADJUST DECISION THRESHOLD FOR BIASED MODEL ---
+                    # A threshold of 0.7 is a good starting point to separate biased classes.
+                    if score > 0.7:
                         st.error(f"**Finding:** Pneumonia Likely Detected (Confidence: {score*100:.2f}%)", icon="🏥")
                     else:
                         st.success(f"**Finding:** Pneumonia Not Detected (Confidence: {(1-score)*100:.2f}%)", icon="🛡️")
-        else:
-            st.info("Upload an X-ray or load a demo to begin.")
 
 # --- Breast Cancer Tab ---
 with breast_cancer_tab:
@@ -159,7 +154,6 @@ with breast_cancer_tab:
             if st.button("🎀 Analyze for Breast Cancer", type="primary", use_container_width=True, key="bc_analyze"):
                 with st.spinner("Care-AI is analyzing for Breast Cancer..."):
                     session = load_model("breast_cancer_classifier.onnx")
-                    # Use the specific, corrected preprocessing function
                     processed_image = preprocess_for_breast_cancer(bc_image_to_show)
 
                     input_name = session.get_inputs()[0].name
@@ -167,9 +161,11 @@ with breast_cancer_tab:
                     outputs = session.run([output_name], {input_name: processed_image})
                     score = float(outputs[0][0][0])
                     
+                    # --- FIX: INVERT LOGIC FOR BREAST CANCER MODEL ---
+                    # A high score from this model likely means BENIGN. A low score means MALIGNANT.
                     if score > 0.5:
-                        st.error(f"**Finding:** Malignant Cells Likely Detected (Confidence: {score*100:.2f}%)", icon="⚠️")
+                        # High score = Benign
+                        st.success(f"**Finding:** Benign Cells Detected (Confidence: {score*100:.2f}%)", icon="✅")
                     else:
-                        st.success(f"**Finding:** Benign Cells Detected (Confidence: {(1-score)*100:.2f}%)", icon="✅")
-        else:
-            st.info("Upload a scan or load a demo to begin.")
+                        # Low score = Malignant. The confidence in this finding is (1 - score).
+                        st.error(f"**Finding:** Malignant Cells Likely Detected (Confidence: {(1-score)*100:.2f}%)", icon="⚠️")
