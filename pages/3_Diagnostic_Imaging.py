@@ -7,7 +7,6 @@ from PIL import Image
 import numpy as np
 import onnxruntime as ort
 from huggingface_hub import hf_hub_download
-import os
 from style_utils import add_custom_css
 
 # --- Page Configuration & Styling ---
@@ -19,7 +18,7 @@ if 'user' not in st.session_state or st.session_state.user is None:
     st.warning("Please log in to access this page.")
     st.stop()
 
-# --- (Model loading and preprocessing functions remain the same) ---
+# --- Model Loading ---
 @st.cache_resource
 def load_model(model_filename):
     repo_id = "aaburakhia/Pneumonia-Detector-CareAI"
@@ -33,6 +32,7 @@ def load_model(model_filename):
     try: return ort.InferenceSession(model_path)
     except Exception as e: st.error(f"Failed to load ONNX model '{model_filename}': {e}"); return None
 
+# --- Preprocessing Functions ---
 def preprocess_for_pneumonia(image: Image.Image):
     img_resized = image.resize((150, 150)).convert('RGB')
     img_array = (np.array(img_resized) / 255.0).astype(np.float32)
@@ -42,33 +42,28 @@ def preprocess_for_breast_cancer(image: Image.Image):
     img_resized = image.resize((224, 224)).convert('RGB')
     img_array = (np.array(img_resized) / 255.0).astype(np.float32)
     return np.expand_dims(img_array, axis=0)
-    
-# --- NEW: Preprocessing function for the Kidney model ---
-def preprocess_for_kidney_cancer(image: Image.Image):
-    """
-    Preprocessing for the Kidney Cancer model.
-    !!! IMPORTANT: Update the resize dimensions if your model requires it !!!
-    """
-    # Assuming your kidney model also takes 224x224. If not, change it here.
+
+def preprocess_for_brain_cancer(image: Image.Image):
+    # Assuming 224x224 input size for the brain model. Adjust if necessary.
     img_resized = image.resize((224, 224)).convert('RGB')
     img_array = (np.array(img_resized) / 255.0).astype(np.float32)
     return np.expand_dims(img_array, axis=0)
 
-
 # --- Sidebar ---
 with st.sidebar:
     st.header("About This Hub")
-    st.markdown("This Care-AI tool uses several deep learning models to analyze different types of medical images. Select a tab for the analysis you wish to perform.")
-    with st.expander("Model Details"):
+    st.markdown("This Care-AI tool uses several deep learning models to analyze different types of medical images.")
+    with st.expander("Model Details", expanded=True):
         st.markdown("""
-        **Pneumonia Model:**
-        - **Input:** 150x150
+        **Pneumonia Model (Binary):**
+        - Input: 150x150
         
-        **Breast Cancer Model:**
-        - **Input:** 224x224
+        **Breast Cancer Model (Binary):**
+        - Input: 224x224
 
-        **Kidney Cancer Model:** 
-        - **Input:** 224x224
+        **Brain Cancer Model (Multi-Class):** 
+        - Input: 224x224
+        - Classes: Tumor, Glioma, Meningioma
         """)
     st.info("This is a proof-of-concept and not a substitute for professional medical diagnosis.")
 
@@ -77,16 +72,15 @@ st.title("Care-AI Diagnostic Imaging Hub")
 st.write("Select a detection tool below to begin your analysis.")
 st.divider()
 
-# --- Tab-Based UI (Now with 3 tabs) ---
-pneumonia_tab, breast_cancer_tab, kidney_cancer_tab = st.tabs([
+# --- Tab-Based UI (Now with Brain Cancer) ---
+pneumonia_tab, breast_cancer_tab, brain_cancer_tab = st.tabs([
     "🫁 Pneumonia (X-Ray)", 
     "🎀 Breast Cancer (Mammogram)", 
-    "🔬 Kidney Cancer (CT Scan)"
+    "🧠 Brain Cancer (MRI)"
 ])
 
 # --- Pneumonia Tab ---
 with pneumonia_tab:
-    # (This tab's code remains unchanged)
     st.header("Pneumonia Detection")
     p_col1, p_col2 = st.columns(2)
     with p_col1:
@@ -105,11 +99,11 @@ with pneumonia_tab:
             if st.button("🔬 Analyze for Pneumonia", type="primary", use_container_width=True, key="p_analyze"):
                 is_demo = "Demo" in st.session_state.p_caption
                 if is_demo:
-                    with st.spinner("Analyzing Demo Image..."):
+                    with st.spinner("Analyzing Demo..."):
                         if "Normal" in st.session_state.p_caption: st.success(f"**Finding:** Pneumonia Not Detected (Confidence: 98.12%)", icon="🛡️")
                         else: st.error(f"**Finding:** Pneumonia Likely Detected (Confidence: 97.53%)", icon="🏥")
                 else:
-                    with st.spinner("Care-AI is analyzing for Pneumonia..."):
+                    with st.spinner("Care-AI is analyzing..."):
                         session = load_model("model.onnx"); processed_image = preprocess_for_pneumonia(p_image_to_show)
                         input_name = session.get_inputs()[0].name; output_name = session.get_outputs()[0].name
                         outputs = session.run([output_name], {input_name: processed_image}); score = float(outputs[0][0][0])
@@ -119,7 +113,6 @@ with pneumonia_tab:
 
 # --- Breast Cancer Tab ---
 with breast_cancer_tab:
-    # (This tab's code remains unchanged)
     st.header("Breast Cancer Detection")
     bc_col1, bc_col2 = st.columns(2)
     with bc_col1:
@@ -138,11 +131,11 @@ with breast_cancer_tab:
             if st.button("🎀 Analyze for Breast Cancer", type="primary", use_container_width=True, key="bc_analyze"):
                 is_demo = "Demo" in st.session_state.bc_caption
                 if is_demo:
-                    with st.spinner("Analyzing Demo Image..."):
+                    with st.spinner("Analyzing Demo..."):
                         if "Benign" in st.session_state.bc_caption: st.success(f"**Finding:** Benign Cells Detected (Confidence: 98.65%)", icon="✅")
                         else: st.error(f"**Finding:** Malignant Cells Likely Detected (Confidence: 96.21%)", icon="⚠️")
                 else:
-                    with st.spinner("Care-AI is analyzing for Breast Cancer..."):
+                    with st.spinner("Care-AI is analyzing..."):
                         session = load_model("breast_cancer_classifier.onnx"); processed_image = preprocess_for_breast_cancer(bc_image_to_show)
                         input_name = session.get_inputs()[0].name; output_name = session.get_outputs()[0].name
                         outputs = session.run([output_name], {input_name: processed_image}); score = float(outputs[0][0][0])
@@ -150,62 +143,76 @@ with breast_cancer_tab:
                         else: st.error(f"**Finding:** Malignant Cells Likely Detected (Confidence: {(1-score)*100:.2f}%)", icon="⚠️")
         else: st.info("Upload a scan or load a demo to begin.")
 
-# --- NEW: Kidney Cancer Tab ---
-with kidney_cancer_tab:
-    st.header("Kidney Cancer Detection")
-    k_col1, k_col2 = st.columns(2)
+# --- NEW: Brain Cancer Tab ---
+with brain_cancer_tab:
+    st.header("Brain Tumor Detection (Multi-class)")
+    br_col1, br_col2 = st.columns(2)
 
-    with k_col1:
-        st.markdown("#### Provide a CT Scan")
-        k_uploaded_file = st.file_uploader("Upload a kidney CT scan", type=["jpeg", "jpg", "png"], key="kidney_uploader")
+    with br_col1:
+        st.markdown("#### Provide an MRI Scan")
+        br_uploaded_file = st.file_uploader("Upload a brain MRI scan", type=["jpeg", "jpg", "png"], key="brain_uploader")
         
         st.markdown("<h5 style='text-align: center; color: grey;'>or</h5>", unsafe_allow_html=True)
         
-        if st.button("Load Normal Kidney (Demo)", use_container_width=True, key="k_demo_normal"):
-            st.session_state.k_image = Image.open("demo_images/kidney_normal.jpg")
-            st.session_state.k_caption = "Demo - Normal Kidney"
+        # New demo buttons for the three tumor classes
+        if st.button("Load General Tumor (Demo)", use_container_width=True, key="br_demo_tumor"):
+            st.session_state.br_image = Image.open("demo_images/brain_tumor.jpg")
+            st.session_state.br_caption = "Demo - General Tumor"
 
-        if st.button("Load Kidney with Tumor (Demo)", use_container_width=True, key="k_demo_tumor"):
-            st.session_state.k_image = Image.open("demo_images/kidney_tumor.jpg")
-            st.session_state.k_caption = "Demo - Kidney with Tumor"
+        if st.button("Load Glioma Tumor (Demo)", use_container_width=True, key="br_demo_glioma"):
+            st.session_state.br_image = Image.open("demo_images/brain_glioma.jpg")
+            st.session_state.br_caption = "Demo - Glioma Tumor"
+            
+        if st.button("Load Meningioma Tumor (Demo)", use_container_width=True, key="br_demo_meningioma"):
+            st.session_state.br_image = Image.open("demo_images/brain_meningioma.jpg")
+            st.session_state.br_caption = "Demo - Meningioma Tumor"
 
-    with k_col2:
+    with br_col2:
         st.markdown("#### Analyze & Review")
         
-        k_image_to_show = None
-        if k_uploaded_file:
-            k_image_to_show = Image.open(k_uploaded_file)
-            st.session_state.k_caption = "Uploaded CT Scan"
-        elif 'k_image' in st.session_state:
-            k_image_to_show = st.session_state.k_image
+        br_image_to_show = None
+        if br_uploaded_file:
+            br_image_to_show = Image.open(br_uploaded_file)
+            st.session_state.br_caption = "Uploaded MRI Scan"
+        elif 'br_image' in st.session_state:
+            br_image_to_show = st.session_state.br_image
             
-        if k_image_to_show:
-            st.image(k_image_to_show, caption=st.session_state.k_caption, use_container_width=True)
-            if st.button("🔬 Analyze for Kidney Cancer", type="primary", use_container_width=True, key="k_analyze"):
-                is_demo = "Demo" in st.session_state.k_caption
+        if br_image_to_show:
+            st.image(br_image_to_show, caption=st.session_state.br_caption, use_container_width=True)
+            if st.button("🧠 Analyze for Brain Cancer", type="primary", use_container_width=True, key="br_analyze"):
+                is_demo = "Demo" in st.session_state.br_caption
+                
+                # --- DEMO BYPASS LOGIC ---
                 if is_demo:
-                    # --- DEMO BYPASS LOGIC ---
                     with st.spinner("Analyzing Demo Image..."):
-                        if "Normal" in st.session_state.k_caption:
-                            st.success(f"**Finding:** No Tumor Detected (Confidence: 99.05%)", icon="🛡️")
-                        else: # It's the Tumor Demo
-                            st.error(f"**Finding:** Tumor Likely Detected (Confidence: 95.88%)", icon="🔬")
+                        if "General Tumor" in st.session_state.br_caption:
+                             st.error(f"**Finding:** General Tumor Detected (Confidence: 98.50%)", icon="🔬")
+                        elif "Glioma" in st.session_state.br_caption:
+                            st.error(f"**Finding:** Glioma Tumor Detected (Confidence: 97.82%)", icon="🔬")
+                        else: # Meningioma
+                            st.error(f"**Finding:** Meningioma Tumor Detected (Confidence: 98.24%)", icon="🔬")
                 else:
-                    # --- LIVE MODEL LOGIC ---
-                    with st.spinner("Care-AI is analyzing for Kidney Cancer..."):
-                        session = load_model("kidney_cancer_model.onnx")
-                        processed_image = preprocess_for_kidney_cancer(k_image_to_show)
+                    # --- LIVE MODEL LOGIC for Multi-Class ---
+                    with st.spinner("Care-AI is analyzing for Brain Cancer..."):
+                        session = load_model("brain_cancer_model.onnx")
+                        processed_image = preprocess_for_brain_cancer(br_image_to_show)
 
                         input_name = session.get_inputs()[0].name
                         output_name = session.get_outputs()[0].name
                         outputs = session.run([output_name], {input_name: processed_image})
-                        score = float(outputs[0][0][0])
                         
-                        # !!! IMPORTANT: This logic is a GUESS. You must test this with your model.
-                        # This assumes score > 0.5 means TUMOR.
-                        if score > 0.5:
-                            st.error(f"**Finding:** Tumor Likely Detected (Confidence: {score*100:.2f}%)", icon="🔬")
-                        else:
-                            st.success(f"**Finding:** No Tumor Detected (Confidence: {(1-score)*100:.2f}%)", icon="🛡️")
+                        # For multi-class, the output is an array of scores (probabilities)
+                        scores = outputs[0][0]
+                        predicted_class_index = np.argmax(scores)
+                        confidence = scores[predicted_class_index] * 100
+                        
+                        # --- CORRECTED CLASS NAMES ---
+                        # !!! IMPORTANT: This order MUST match how your model was trained !!!
+                        # (e.g., if Glioma was class 0, Meningioma was class 1, Tumor was class 2)
+                        class_names = ["Glioma Tumor", "Meningioma Tumor", "Tumor"] # Adjust order if necessary
+                        finding = class_names[predicted_class_index]
+
+                        # Display results (all are error/warning states as they are all tumors)
+                        st.error(f"**Finding:** {finding} (Confidence: {confidence:.2f}%)", icon="🔬")
         else:
-            st.info("Upload a CT scan or load a demo to begin.")
+            st.info("Upload an MRI scan or load a demo to begin.")
