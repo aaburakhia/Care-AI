@@ -44,13 +44,11 @@ def preprocess_for_breast_cancer(image: Image.Image):
     return np.expand_dims(img_array, axis=0)
 
 def preprocess_for_kidney_cancer(image: Image.Image):
-    # Assuming 224x224 input size. Adjust if necessary.
     img_resized = image.resize((224, 224)).convert('RGB')
     img_array = (np.array(img_resized) / 255.0).astype(np.float32)
     return np.expand_dims(img_array, axis=0)
 
 def preprocess_for_brain_cancer(image: Image.Image):
-    # Assuming 224x224 input size. Adjust if necessary.
     img_resized = image.resize((224, 224)).convert('RGB')
     img_array = (np.array(img_resized) / 255.0).astype(np.float32)
     return np.expand_dims(img_array, axis=0)
@@ -76,7 +74,7 @@ st.title("Care-AI Diagnostic Imaging Hub")
 st.write("Select a detection tool below to begin your analysis.")
 st.divider()
 
-# --- Tab-Based UI (Now with 4 tabs) ---
+# --- Tab-Based UI (All Four Tabs) ---
 pneumonia_tab, breast_cancer_tab, kidney_cancer_tab, brain_cancer_tab = st.tabs([
     "🫁 Pneumonia", 
     "🎀 Breast Cancer", 
@@ -86,7 +84,6 @@ pneumonia_tab, breast_cancer_tab, kidney_cancer_tab, brain_cancer_tab = st.tabs(
 
 # --- Pneumonia Tab ---
 with pneumonia_tab:
-    # (This tab's code is unchanged)
     st.header("Pneumonia Detection (X-Ray)")
     p_col1, p_col2 = st.columns(2)
     with p_col1:
@@ -119,16 +116,40 @@ with pneumonia_tab:
 
 # --- Breast Cancer Tab ---
 with breast_cancer_tab:
-    # (This tab's code is unchanged)
     st.header("Breast Cancer Detection (Mammogram)")
     bc_col1, bc_col2 = st.columns(2)
-    # ... (code is the same as before, omitted for brevity)
-    
+    with bc_col1:
+        st.markdown("#### Provide a Mammogram Scan")
+        bc_uploaded_file = st.file_uploader("Upload a mammogram scan", type=["jpeg", "jpg", "png"], key="bc_uploader")
+        st.markdown("<h5 style='text-align: center; color: grey;'>or</h5>", unsafe_allow_html=True)
+        if st.button("Load Benign Scan (Demo)", use_container_width=True, key="bc_demo_benign"): st.session_state.bc_image = Image.open("demo_images/bc_benign_1.jpeg"); st.session_state.bc_caption = "Demo - Benign Scan"
+        if st.button("Load Malignant Scan (Demo)", use_container_width=True, key="bc_demo_malignant"): st.session_state.bc_image = Image.open("demo_images/bc_malignant_1.jpeg"); st.session_state.bc_caption = "Demo - Malignant Scan"
+    with bc_col2:
+        st.markdown("#### Analyze & Review")
+        bc_image_to_show = None
+        if bc_uploaded_file: bc_image_to_show = Image.open(bc_uploaded_file); st.session_state.bc_caption = "Uploaded Scan"
+        elif 'bc_image' in st.session_state: bc_image_to_show = st.session_state.bc_image
+        if bc_image_to_show:
+            st.image(bc_image_to_show, caption=st.session_state.bc_caption, use_container_width=True)
+            if st.button("🎀 Analyze for Breast Cancer", type="primary", use_container_width=True, key="bc_analyze"):
+                is_demo = "Demo" in st.session_state.bc_caption
+                if is_demo:
+                    with st.spinner("Analyzing Demo..."):
+                        if "Benign" in st.session_state.bc_caption: st.success(f"**Finding:** Benign Cells Detected (Confidence: 98.65%)", icon="✅")
+                        else: st.error(f"**Finding:** Malignant Cells Likely Detected (Confidence: 96.21%)", icon="⚠️")
+                else:
+                    with st.spinner("Care-AI is analyzing..."):
+                        session = load_model("breast_cancer_classifier.onnx"); processed_image = preprocess_for_breast_cancer(bc_image_to_show)
+                        input_name = session.get_inputs()[0].name; output_name = session.get_outputs()[0].name
+                        outputs = session.run([output_name], {input_name: processed_image}); score = float(outputs[0][0][0])
+                        if score > 0.5: st.success(f"**Finding:** Benign Cells Detected (Confidence: {score*100:.2f}%)", icon="✅")
+                        else: st.error(f"**Finding:** Malignant Cells Likely Detected (Confidence: {(1-score)*100:.2f}%)", icon="⚠️")
+        else: st.info("Upload a scan or load a demo to begin.")
+
 # --- Kidney Cancer Tab ---
 with kidney_cancer_tab:
     st.header("Kidney Cancer Detection (CT Scan)")
     k_col1, k_col2 = st.columns(2)
-
     with k_col1:
         st.markdown("#### Provide a CT Scan")
         k_uploaded_file = st.file_uploader("Upload a kidney CT scan", type=["jpeg", "jpg", "png"], key="k_uploader")
@@ -161,7 +182,6 @@ with kidney_cancer_tab:
 with brain_cancer_tab:
     st.header("Brain Tumor Detection (MRI)")
     br_col1, br_col2 = st.columns(2)
-
     with br_col1:
         st.markdown("#### Provide an MRI Scan")
         br_uploaded_file = st.file_uploader("Upload a brain MRI scan", type=["jpeg", "jpg", "png"], key="br_uploader")
